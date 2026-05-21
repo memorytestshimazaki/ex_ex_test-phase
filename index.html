@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>単語再認テスト</title>
+
+  <!-- jsPsych -->
+  <script src="https://unpkg.com/jspsych@7.3.4"></script>
+  
+
+  <!-- ボタン回答プラグイン -->
+  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3"></script>
+<script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.3"></script>
+  <style>
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background-color: white;
+    }
+
+    /* 画面中央配置 */
+
+    .jspsych-display-element {
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .center-text {
+      width: 100%;
+      text-align: center;
+      font-family: sans-serif;
+    }
+
+  </style>
+
+</head>
+
+<body></body>
+
+<script>
+
+/* ========================================
+   GASのURL
+======================================== */
+
+/* ↓ここを自分のURLに変更 */
+
+const GAS_URL =
+  "https://script.google.com/macros/s/AKfycbyxI5W2nxXaDiqYwjs4j2GxKJXNzLRZc9QkXcaH1c9mVKZWK6NVoXwb0H5McBrvpWZS/exec"
+/* ========================================
+   jsPsych 初期化
+======================================== */
+
+const jsPsych = initJsPsych();
+
+let timeline = [];
+let participant_id = "";
+
+timeline.push({
+
+  type: jsPsychSurveyText,
+
+  questions: [
+
+    {
+      prompt: "参加者IDを入力してください",
+      required: true
+    }
+
+  ],
+
+  button_label: "次へ",
+
+  on_finish: function(data){
+
+    participant_id =
+      data.response.Q0;
+
+  }
+
+});
+
+/* ========================================
+   教示画面
+======================================== */
+
+timeline.push({
+
+  type: jsPsychHtmlButtonResponse,
+
+  stimulus: `
+    <div class="center-text"
+         style="font-size:25px; line-height:1.8;">
+      これから単語が表示されます。<br>
+      各単語について、<br>
+      「見た」または「見てない」を選択してください。
+    </div>
+  `,
+
+  choices: ['開始する']
+
+});
+
+/* ========================================
+   テスト単語
+======================================== */
+
+let test_words = [
+
+  /* old（見た） */
+
+  {word: "晴れ", correct_answer: 0},
+  {word: "笑顔", correct_answer: 0},
+  {word: "成功", correct_answer: 0},
+  {word: "旅行", correct_answer: 0},
+  {word: "友情", correct_answer: 0},
+
+  /* new（見てない） */
+
+  {word: "海", correct_answer: 1},
+  {word: "猫", correct_answer: 1},
+  {word: "山", correct_answer: 1},
+  {word: "机", correct_answer: 1},
+  {word: "窓", correct_answer: 1}
+
+];
+
+/* ========================================
+   ランダム化
+======================================== */
+
+test_words =
+  jsPsych.randomization.shuffle(test_words);
+
+/* ========================================
+   テストフェーズ
+======================================== */
+
+test_words.forEach(function(item){
+
+  timeline.push({
+
+    type: jsPsychHtmlButtonResponse,
+
+    stimulus: `
+      <div class="center-text"
+           style="font-size:100px;">
+        ${item.word}
+      </div>
+    `,
+
+    choices: ['見た', '見てない'],
+
+    /* 保存データ */
+
+    data: {
+
+      word: item.word,
+
+      correct_answer: item.correct_answer
+
+    },
+
+    /* 回答後処理 */
+
+    on_finish: function(data){
+
+      /* 正答判定 */
+
+      data.correct =
+        data.response == data.correct_answer;
+
+      /* ------------------------
+         Googleスプレッドシート送信
+      ------------------------ */
+
+      fetch(GAS_URL, {
+
+        method: "POST",
+
+        body: JSON.stringify({
+
+  participant_id: participant_id,
+
+  word: data.word,
+
+  response: data.response,
+
+  correct_answer: data.correct_answer,
+
+  correct: data.correct,
+
+  rt: data.rt
+
+})
+
+      });
+
+    }
+
+  });
+
+});
+
+/* ========================================
+   終了画面
+======================================== */
+
+timeline.push({
+
+  type: jsPsychHtmlButtonResponse,
+
+  stimulus: `
+    <div class="center-text"
+         style="font-size:20px; line-height:1.8;">
+      実験は終了しました。<br>
+      ご協力ありがとうございました。<br><br>
+      このページを閉じてください。
+    </div>
+  `,
+
+  choices: ['終了']
+
+});
+
+/* ========================================
+   実行
+======================================== */
+
+jsPsych.run(timeline);
+
+</script>
+
+</html>
